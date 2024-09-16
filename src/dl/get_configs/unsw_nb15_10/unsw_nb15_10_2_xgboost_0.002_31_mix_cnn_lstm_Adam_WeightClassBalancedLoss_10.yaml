@@ -1,0 +1,89 @@
+lab_type: dl
+lab_point: models
+model_name: MIX_CNN_LSTM
+optimizer_name: Adam
+criterion_name: WeightClassBalancedLoss
+
+
+data:
+  _target_: src.dl.dl_csv_dataset.CSVDataset
+  data_dir: ../../data/
+  data_name: UNSW_NB15_10
+  batch_size: 128
+  num_workers: 8
+  num_classes: 2
+  train_ratio: 0.7
+  method: xgboost
+  threshold: 0.002
+  augmenter: 
+  transform: 
+  target_names: ['Normal', 'Attack']
+
+model:
+  _target_: src.dl.dl_train.Trainer
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.0
+
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: min
+    factor: 0.1
+    patience: 10
+
+  net:
+    _target_: src.components.models.oneDim.mix_cnn_lstm.MIX_CNN_LSTM
+    input_size: 31
+    lin1_size: 640
+    lin2_size: 256
+    lin3_size: 128
+    output_size: ${data.num_classes}
+    dropout_proba: 0.2
+
+
+  criterion:
+    _target_: src.utils.loss_function.WeightClassBalancedLoss
+    num_classes: ${data.num_classes}
+
+  num_classes: ${data.num_classes}
+
+
+task_name: ${data.data_name}
+
+tags: [UNSW_NB15_10, MIX_CNN_LSTM]
+
+seed: 12345
+
+# set False to skip model training
+train: True
+
+test: True
+#test_known: True
+#test_unknown: True
+
+#test_tsne: True
+compile: False
+ckpt_path: null
+
+
+trainer:
+  max_epochs: 10
+
+
+hydra:
+  job_logging:
+    root:
+      handlers: [ ]
+  run:
+    dir: ../../logs/${lab_type}/${data.data_name}/${lab_point}/${data.data_name}_${data.num_classes}_${data.threshold}_${model.net.input_size}_${data.augmenter}_${data.transform}_${model_name}_${optimizer_name}_${criterion_name}_${trainer.max_epochs}
+  sweep:
+    dir: ../../logs/${lab_type}/${data.data_name}/${lab_point}/${data.data_name}_${data.num_classes}_${data.threshold}_${model.net.input_size}_${data.augmenter}_${data.transform}_${model_name}_${optimizer_name}_${criterion_name}_${trainer.max_epochs}
+    subdir: ''
+paths:
+  train_dir: ../../results/${lab_type}/${data.data_name}/${lab_point}/${data.data_name}_${data.num_classes}_${data.threshold}_${model.net.input_size}_${model_name}_${optimizer_name}_${criterion_name}_${trainer.max_epochs}/train
+  eval_dir: ../../results/${lab_type}/${data.data_name}/${lab_point}/${data.data_name}_${data.num_classes}_${data.threshold}_${model.net.input_size}_${model_name}_${optimizer_name}_${criterion_name}_${trainer.max_epochs}/test
+  tsne_dir: ../../results/${lab_type}/${data.data_name}/${lab_point}/${data.data_name}_${data.num_classes}_${data.threshold}_${model.net.input_size}_${model_name}_${optimizer_name}_${criterion_name}_${trainer.max_epochs}/tsne
+  results_dir: ../../results
